@@ -2,8 +2,22 @@
 
 define("API_AUTH_TOKEN", file_get_contents("./auth_token"));
 define("API_URL", "https://api.telegram.org/bot".API_AUTH_TOKEN."/");
+handleWebRequest();
 
 
+function handleWebRequest()  {
+    $request = json_decode(file_get_contents("php://input"), true);
+    if(isTextMessage($request)) {
+        handleTextMessage($request["message"]);
+    }
+    else {
+        echo("unsupported request");
+    }
+}
+
+function handleTextMessage($message) {
+    replyToMessage($message["chat"]["id"], $message["message_id"], "hello world!");
+}
 
 function replyToMessage($chat_id, $message_id, $replyText) {
     $parameters = array(
@@ -11,15 +25,17 @@ function replyToMessage($chat_id, $message_id, $replyText) {
         "reply_to_message_id" => $message_id,
         "text" => $replyText,
         "method" => "sendMessage");
-    header("Content-Type: application/json");
-    echo json_encode($parameters);
+    respondWebRequest($parameters);
 }
 
+function isTextMessage($request) {
+    return isset($request["message"]) && isset($request["message"]["text"]);
+}
 
+function respondWebRequest($body) {
+    header("Content-Type: application/json");
+    echo(json_encode($body));
+}
 
-$content = file_get_contents("php://input");
-$update = json_decode($content, true);
-$message = $update["message"];
-replyToMessage($message["chat"]["id"], $message["message_id"], "hello world!")
 
 ?>
