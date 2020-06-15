@@ -16,7 +16,9 @@ function handleWebRequest()  {
 }
 
 function handleTextMessage($message) {
-    replyToMessage($message["chat"]["id"], $message["message_id"], "hello world!");
+    if(messageIsReply($message)) {
+        replyToMessage($message["chat"]["id"], $message["message_id"], "yo");
+    }
 }
 
 function replyToMessage($chat_id, $message_id, $replyText) {
@@ -30,6 +32,10 @@ function replyToMessage($chat_id, $message_id, $replyText) {
 
 function isTextMessage($request) {
     return isset($request["message"]) && isset($request["message"]["text"]);
+}
+
+function messageIsReply($message) {
+    return isset($message["reply_to_message"]);
 }
 
 function respondWebRequest($body) {
