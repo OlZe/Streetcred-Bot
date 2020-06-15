@@ -2,6 +2,7 @@
 
 define("API_AUTH_TOKEN", file_get_contents("./auth_token"));
 define("API_URL", "https://api.telegram.org/bot".API_AUTH_TOKEN."/");
+define("GIVE_CRED_COMMAND", "respect");
 handleWebRequest();
 
 
@@ -16,8 +17,13 @@ function handleWebRequest()  {
 }
 
 function handleTextMessage($message) {
-    if(messageIsReply($message)) {
-        replyToMessage($message["chat"]["id"], $message["message_id"], "yo");
+    if(strpos($message["text"], GIVE_CRED_COMMAND) === 0) {
+        if(messageIsReply($message)) {
+            $replyRecieverName = $message["reply_to_message"]["from"]["first_name"];
+            $replyRecieverId = $message["reply_to_message"]["from"]["id"];
+            $replyRecieverCred = addCredToUser($message["chat"]["id"], $replyRecieverId, 1);
+            replyToMessage($message["chat"]["id"], $message["message_id"], "Streetcred: ".$replyRecieverCred);
+        }
     }
 }
 
@@ -41,6 +47,42 @@ function messageIsReply($message) {
 function respondWebRequest($body) {
     header("Content-Type: application/json");
     echo(json_encode($body));
+}
+
+function getCredForUser($chat_id, $user_id) {
+    $cred = 0;
+    $file = getSavedCred($chat_id);
+    if(isset($file[$user_id])) {
+        $cred = $file[$user_id];
+    }
+    return $cred;
+}
+
+function addCredToUser($chat_id, $user_id, $amount_cred) {
+    $newCred = null;
+    $file = getSavedCred($chat_id);
+    if(isset($file[$user_id])) {
+        $file[$user_id] += $amount_cred;
+    }
+    else {
+        $file[$user_id] = $amount_cred;
+    }
+    $newCred = $file[$user_id];
+    file_put_contents("./".$chat_id, json_encode($file));
+    return $newCred;
+}
+
+function getSavedCred($chat_id) {
+    $fileString = file_get_contents("./".$chat_id);
+    $fileJson = null;
+    if($fileString === false) {
+        // If there is no file yet, make one
+        $fileJson = array();
+    }
+    else {
+        $fileJson = json_decode($fileString, true);
+    }
+    return $fileJson;
 }
 
 
