@@ -3,6 +3,7 @@
 define("API_AUTH_TOKEN", file_get_contents("./auth_token"));
 define("API_URL", "https://api.telegram.org/bot".API_AUTH_TOKEN."/");
 define("GIVE_CRED_COMMAND", "respect");
+define("GET_CRED_COMMAND", "/respect");
 (new Controller())->handleWebRequest();
 
 class Controller {
@@ -42,14 +43,27 @@ class Service {
     }
 
     public function handleTextMessage($message) {
-        $answer = null;
+        $answerObject = null;
+        $answerText = null;
         if(strpos($message["text"], GIVE_CRED_COMMAND) === 0) {
-            $replyText = $this->handleGiveCredCommand($message);
-            if($replyText != null) {
-                $answer = $this->prepareReplyToMessage($message, $replyText);
-            }
+            $answerText = $this->handleGiveCredCommand($message);
         }
-        return $answer;
+        elseif(strpos($message["text"], GET_CRED_COMMAND) === 0) {
+            $answerText = $this->handleGetCredCommand($message);
+        }
+
+        if($answerText != null) {
+            $answerObject = $this->prepareReplyToMessage($message, $answerText);
+        }
+        return $answerObject;
+    }
+
+    private function handleGetCredCommand($message) {
+        $user_id = $message["from"]["id"];
+        $user_name = $message["from"]["first_name"];
+        $chat_id = $message["chat"]["id"];
+        $cred = $this->$dao->getCredForUser($chat_id, $user_id); 
+        return $user_name." has ".$cred." streetcred.";
     }
         
     private function handleGiveCredCommand($message) {
