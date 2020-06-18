@@ -55,10 +55,10 @@ class Service {
     private function handleGiveCredCommand($message) {
         $text = null;
         if($this->messageIsReply($message)) {
-            $replyRecieverName = $message["reply_to_message"]["from"]["first_name"];
-            $replyRecieverId = $message["reply_to_message"]["from"]["id"];
-            $replyRecieverCred = $this->$dao->addCredToUser($message["chat"]["id"], $replyRecieverId, 1);
-            $text = "Streetcred: ".$replyRecieverCred;
+            $credRecieverName = $message["reply_to_message"]["from"]["first_name"];
+            $credRecieverId = $message["reply_to_message"]["from"]["id"];
+            $newCred = $this->$dao->addCredToUser($message["chat"]["id"], $credRecieverId, 1);
+            $text = $credRecieverName."'s streetcred: ".$newCred;
         }
         return $text;
     }
