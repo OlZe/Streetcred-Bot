@@ -4,6 +4,7 @@ define("API_AUTH_TOKEN", file_get_contents("./auth_token"));
 define("API_URL", "https://api.telegram.org/bot".API_AUTH_TOKEN."/");
 define("GIVE_CRED_COMMAND", "respect");
 define("GET_CRED_COMMAND", "/respect");
+define("HELP_COMMAND", "/help");
 (new Controller())->handleWebRequest();
 
 class Controller {
@@ -51,6 +52,9 @@ class Service {
         elseif($this->messageIsCommand($message["text"], GET_CRED_COMMAND)) {
             $answerText = $this->handleGetCredCommand($message);
         }
+        elseif($this->messageIsCommand($message["text"], HELP_COMMAND)) {
+            $answerText = $this->handleHelpCommand();
+        }
 
         if($answerText != null) {
             $answerObject = $this->prepareReplyToMessage($message, $answerText);
@@ -76,6 +80,11 @@ class Service {
             $text = $credRecieverName."'s streetcred: ".$newCred;
         }
         return $text;
+    }
+
+    private function handleHelpCommand() {
+        return  "Use /respect to see how much streetcred you have.\n".
+                "Reply to someone's message with 'respect x' to give them +x streetcred!";
     }
 
     private function getGiveCredAmount($text) {
