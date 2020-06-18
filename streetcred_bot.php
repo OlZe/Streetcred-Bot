@@ -57,10 +57,24 @@ class Service {
         if($this->messageIsReply($message)) {
             $credRecieverName = $message["reply_to_message"]["from"]["first_name"];
             $credRecieverId = $message["reply_to_message"]["from"]["id"];
-            $newCred = $this->$dao->addCredToUser($message["chat"]["id"], $credRecieverId, 1);
+            $addCredAmount = $this->getGiveCredAmount($message["text"]);
+            $newCred = $this->$dao->addCredToUser($message["chat"]["id"], $credRecieverId, $addCredAmount);
             $text = $credRecieverName."'s streetcred: ".$newCred;
         }
         return $text;
+    }
+
+    private function getGiveCredAmount($text) {
+        $amount = 1;
+        // trim command and whitespaces away
+        $textedAmount = trim(substr($text, strlen(GIVE_CRED_COMMAND)));
+        if(strlen($textedAmount) > 0) {
+            $parsedAmount = intval($textedAmount);
+            if($parsedAmount != 0) {
+                $amount = $parsedAmount;
+            }
+        }
+        return $amount;
     }
 
     private function messageIsReply($message) {
