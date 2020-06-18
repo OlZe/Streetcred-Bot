@@ -45,10 +45,10 @@ class Service {
     public function handleTextMessage($message) {
         $answerObject = null;
         $answerText = null;
-        if(strpos($message["text"], GIVE_CRED_COMMAND) === 0) {
+        if($this->messageIsCommand($message["text"], GIVE_CRED_COMMAND)) {
             $answerText = $this->handleGiveCredCommand($message);
         }
-        elseif(strpos($message["text"], GET_CRED_COMMAND) === 0) {
+        elseif($this->messageIsCommand($message["text"], GET_CRED_COMMAND)) {
             $answerText = $this->handleGetCredCommand($message);
         }
 
@@ -89,6 +89,11 @@ class Service {
             }
         }
         return $amount;
+    }
+
+    private function messageIsCommand($messageText, $command) {
+        $messageText = strtolower($messageText);
+        return strpos($messageText, $command) === 0;
     }
 
     private function messageIsReply($message) {
