@@ -59,11 +59,11 @@ class Service {
     }
 
     private function handleGetCredCommand($message) {
-        $user_id = $message["from"]["id"];
-        $user_name = $message["from"]["first_name"];
-        $chat_id = $message["chat"]["id"];
-        $cred = $this->$dao->getCredForUser($chat_id, $user_id); 
-        return $user_name." has ".$cred." streetcred.";
+        $userId = $message["from"]["id"];
+        $userName = $message["from"]["first_name"];
+        $chatId = $message["chat"]["id"];
+        $cred = $this->$dao->getCredForUser($chatId, $userId); 
+        return $userName." has ".$cred." streetcred.";
     }
         
     private function handleGiveCredCommand($message) {
@@ -105,30 +105,30 @@ class Service {
 }
 
 class Dao {
-    public function getCredForUser($chat_id, $user_id) {
+    public function getCredForUser($chatId, $userId) {
         $cred = 0;
-        $file = $this->getCredForChat($chat_id);
-        if(isset($file[$user_id])) {
-            $cred = $file[$user_id];
+        $file = $this->getCredForChat($chatId);
+        if(isset($file[$userId])) {
+            $cred = $file[$userId];
         }
         return $cred;
     }
     
-    public function addCredToUser($chat_id, $user_id, $amount_cred) {
-        $chatCred = $this->getCredForChat($chat_id);
-        if(isset($chatCred[$user_id])) {
-            $chatCred[$user_id] += $amount_cred;
+    public function addCredToUser($chatId, $userId, $amountCred) {
+        $chatCred = $this->getCredForChat($chatId);
+        if(isset($chatCred[$userId])) {
+            $chatCred[$userId] += $amountCred;
         }
         else {
-            $chatCred[$user_id] = $amount_cred;
+            $chatCred[$userId] = $amountCred;
         }
-        $newUserCred = $chatCred[$user_id];
-        $this->saveCredForChat($chat_id, $chatCred);
+        $newUserCred = $chatCred[$userId];
+        $this->saveCredForChat($chatId, $chatCred);
         return $newUserCred;
     }
     
-    private function getCredForChat($chat_id) {
-        $fileString = file_get_contents("./".$chat_id);
+    private function getCredForChat($chatId) {
+        $fileString = file_get_contents("./".$chatId);
         $fileJson = null;
         if($fileString === false) {
             // If there is no file yet, return empty array
@@ -140,8 +140,8 @@ class Dao {
         return $fileJson;
     }
     
-    private function saveCredForChat($chat_id, $credData) {
-        file_put_contents("./".$chat_id, json_encode($credData));
+    private function saveCredForChat($chatId, $credData) {
+        file_put_contents("./".$chatId, json_encode($credData));
     }
 }
 
