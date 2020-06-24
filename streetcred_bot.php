@@ -77,7 +77,9 @@ class Service {
             $credRecieverId = $message["reply_to_message"]["from"]["id"];
             $addCredAmount = $this->getGiveCredAmount($message["text"]);
             $newCred = $this->$dao->addCredToUser($message["chat"]["id"], $credRecieverId, $addCredAmount);
-            $text = $credRecieverName."'s streetcred: ".$newCred;
+
+            $plusSign = $addCredAmount >= 0 ? "+" : ""; // negative numbers already have a "-"-symbol in front
+            $text = $plusSign.$addCredAmount." streetcred to ".$credRecieverName.": ".$newCred;
         }
         return $text;
     }
