@@ -123,27 +123,16 @@ class Service {
 class Dao {
     public function getCredForUser($chatId, $userId) {
         $cred = 0;
-        $file = $this->getCredForChat($chatId);
-        if(isset($file[$userId])) {
-            $cred = $file[$userId];
+        $data = $this->getCredData($chatId);
+        foreach($data[$userId] as $credRecievedMessageId => $credRecievedMessage) {
+            foreach($credRecievedMessage["givenCredMessages"] as $credGivenMessageId => $credGivenMessage) {
+                $cred += $credGivenMessage["givenCredAmount"];
+            }
         }
         return $cred;
     }
     
-    public function addCredToUser($chatId, $userId, $amountCred) {
-        $chatCred = $this->getCredForChat($chatId);
-        if(isset($chatCred[$userId])) {
-            $chatCred[$userId] += $amountCred;
-        }
-        else {
-            $chatCred[$userId] = $amountCred;
-        }
-        $newUserCred = $chatCred[$userId];
-        $this->saveCredForChat($chatId, $chatCred);
-        return $newUserCred;
-    }
-    
-    private function getCredForChat($chatId) {
+    private function getCredData($chatId) {
         $fileString = file_get_contents("./".$chatId);
         $fileJson = null;
         if($fileString === false) {
@@ -155,12 +144,38 @@ class Dao {
         }
         return $fileJson;
     }
-    
-    private function saveCredForChat($chatId, $credData) {
+
+    private function saveCredData($chatId, $credData) {
         file_put_contents("./".$chatId, json_encode($credData));
     }
 }
 
+/*
+Structure of saved data for each file (chat_id):
+{
+    "<userId">: {
+        "<messageIdThatHeRecievedCredFor>": {
+            "messageText": string,
+            "botReplyMessageId": int,
+            "time": int,
+            "givenCredMessages": {
+                "<messageIdThatGaveHimCred>": {
+                    "givenCredAmount": int,
+                    "firstName": string
+                },
+                "<messageIdThatGaveHimCred>": { ... },
+                ...
+            }
+        },
+        "<messageIdThatHeRecievedCredFor>": { ... },
+        ...
+    }
+    "<userId">: { ... },
+    ...
+}
+
+
+*/
 
 
 
