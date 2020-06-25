@@ -66,20 +66,26 @@ class Service {
         $userId = $message["from"]["id"];
         $userName = $message["from"]["first_name"];
         $chatId = $message["chat"]["id"];
-        $cred = $this->$dao->getCredForUser($chatId, $userId); 
+        $cred = $this->$dao->getTotalCredForUser($chatId, $userId); 
         return $userName." has ".$cred." streetcred.";
     }
         
     private function handleGiveCredCommand($message) {
         $text = null;
         if($this->messageIsReply($message)) {
-            $credRecieverName = $message["reply_to_message"]["from"]["first_name"];
-            $credRecieverId = $message["reply_to_message"]["from"]["id"];
-            $addCredAmount = $this->getGiveCredAmount($message["text"]);
-            $newCred = $this->$dao->addCredToUser($message["chat"]["id"], $credRecieverId, $addCredAmount);
+            // $credRecieverMessageId = $message["message_id"];
+            // $credRecieverName = $message["reply_to_message"]["from"]["first_name"];
+            // $credRecieverUserId = $message["reply_to_message"]["from"]["id"];
+            // $addCredAmount = $this->getGiveCredAmount($message["text"]);
+            // $credData = $this->$dao->getCredForUser($message["chat"]["id"], $credRecieverUserId);
 
-            $plusSign = $addCredAmount >= 0 ? "+" : ""; // negative numbers already have a "-"-symbol in front
-            $text = $plusSign.$addCredAmount." streetcred to ".$credRecieverName.": ".$newCred;
+            // $credData[""]
+
+
+            // // $newCred = $this->$dao->addCredToUser($message["chat"]["id"], $credRecieverId, $addCredAmount);
+
+            // $plusSign = $addCredAmount >= 0 ? "+" : ""; // negative numbers already have a "-"-symbol in front
+            // $text = $plusSign.$addCredAmount." streetcred to ".$credRecieverName.": ".$newCred;
         }
         return $text;
     }
@@ -121,15 +127,25 @@ class Service {
 }
 
 class Dao {
-    public function getCredForUser($chatId, $userId) {
+    public function getTotalCredForUser($chatId, $userId) {
         $cred = 0;
-        $data = $this->getCredData($chatId);
-        foreach($data[$userId] as $credRecievedMessageId => $credRecievedMessage) {
-            foreach($credRecievedMessage["givenCredMessages"] as $credGivenMessageId => $credGivenMessage) {
-                $cred += $credGivenMessage["givenCredAmount"];
+        $userData = $this->getCredDataForUser($chatId, $userId);
+        foreach($userData as $credRecievedMessageId => $credRecievedMessage) {
+            foreach($credRecievedMessage["credSources"] as $userIdGivenCred => $userGivenCred) {
+                $cred += $userGivenCred["givenCredAmount"];
             }
         }
         return $cred;
+    }
+
+    public function getCredDataForUser($chatId, $userId) {
+        return $this->getCredData($chatId)[$userId];
+    }
+
+    public function saveCredDataForUser($chatId, $userId, $credData) {
+        $allCredData = $this->getCredData($chatId);
+        $allCredData[$userId] = $credData;
+        $this->saveCredData($chatId, $allCredData);
     }
     
     private function getCredData($chatId) {
@@ -157,13 +173,13 @@ Structure of saved data for each file (chat_id):
         "<messageIdThatHeRecievedCredFor>": {
             "messageText": string,
             "botReplyMessageId": int,
-            "time": int,
-            "givenCredMessages": {
-                "<messageIdThatGaveHimCred>": {
+            "date": int,
+            "credSources": {
+                "<userIdThatGaveHimCred>": {
                     "givenCredAmount": int,
                     "firstName": string
                 },
-                "<messageIdThatGaveHimCred>": { ... },
+                "<userIdThatGaveHimCred>": { ... },
                 ...
             }
         },
