@@ -16,19 +16,27 @@ class Controller {
 
     public function handleWebRequest()  {
         $request = json_decode(file_get_contents("php://input"), true);
-        $answer = null;
         if($this->isTextMessage($request)) {
+            $answer = null;
             $answer = $this->$service->handleTextMessage($request["message"]);
+            if(isset($answer)) {
+                $this->sendRequest($answer);
+            }
         }
         else {
-            $answer = "unsupported request";
+            echo 'unsupported request';
         }
-        $this->respondWebRequest($answer);
     }
     
-    private function respondWebRequest($body) {
-        header("Content-Type: application/json");
-        echo(json_encode($body));
+    private function sendRequest($body) {
+        $curl = curl_init(API_URL."sendMessage");
+        curl_setopt($curl, CURLOPT_POST, true);
+        curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode($body));
+        curl_setopt($curl, CURLOPT_HTTPHEADER, array("Content-Type:application/json"));
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+
+        $result = json_decode(curl_exec($curl));
+        curl_close($curl);
     }
     
     private function isTextMessage($request) {
@@ -135,8 +143,7 @@ class Service {
         return array(
             "chat_id" => $message["chat"]["id"],
             "reply_to_message_id" => $message["message_id"],
-            "text" => $text,
-            "method" => "sendMessage");
+            "text" => $text);
     }
 }
 
