@@ -45,19 +45,14 @@ class Service {
 
     public function handleTextMessage($message) {
         $answerObject = null;
-        $answerText = null;
         if($this->messageIsCommand($message["text"], GIVE_CRED_COMMAND)) {
-            $answerText = $this->handleGiveCredCommand($message);
+            $answerObject = $this->handleGiveCredCommand($message);
         }
         elseif($this->messageIsCommand($message["text"], GET_CRED_COMMAND)) {
-            $answerText = $this->handleGetCredCommand($message);
+            $answerObject = $this->handleGetCredCommand($message);
         }
         elseif($this->messageIsCommand($message["text"], HELP_COMMAND)) {
-            $answerText = $this->handleHelpCommand();
-        }
-
-        if($answerText != null) {
-            $answerObject = $this->prepareReplyToMessage($message, $answerText);
+            $answerObject = $this->handleHelpCommand($message);
         }
         return $answerObject;
     }
@@ -66,12 +61,14 @@ class Service {
         $userId = $message["from"]["id"];
         $userName = $message["from"]["first_name"];
         $chatId = $message["chat"]["id"];
-        $cred = $this->$dao->getTotalCredForUser($chatId, $userId); 
-        return $userName." has ".$cred." streetcred.";
+        $cred = $this->$dao->getTotalCredForUser($chatId, $userId);
+
+        $answerText = $userName." has ".$cred." streetcred.";
+        return $this->prepareReplyToMessage($message, $answerText);
     }
         
     private function handleGiveCredCommand($message) {
-        $text = null;
+        $answerObject = null;
         if($this->messageIsReply($message)) {
             $chatId = $message["chat"]["id"];
             $recieverMessageId = $message["reply_to_message"]["message_id"];
@@ -100,14 +97,16 @@ class Service {
             $newRecieverCred = $recieverCredData[$recieverMessageId]["credSources"][$donorUserId]["givenCredAmount"];
 
             $plusSign = $addCredAmount >= 0 ? "+" : ""; // negative numbers already have a "-"-symbol in front
-            $text = $plusSign.$addCredAmount." streetcred to ".$recieverName.": ".$newRecieverCred;
+            $answerText = $plusSign.$addCredAmount." streetcred to ".$recieverName.": ".$newRecieverCred;
+            $answerObject = $this->prepareReplyToMessage($message["reply_to_message"], $answerText);
         }
-        return $text;
+        return $answerObject;
     }
 
-    private function handleHelpCommand() {
-        return  "Use /respect to see how much streetcred you have.\n".
-                "Reply to someone's message with 'respect x' to give them +x streetcred!";
+    private function handleHelpCommand($message) {
+        $answerText =   "Use /respect to see how much streetcred you have.\n".
+                        "Reply to someone's message with 'respect x' to give them +x streetcred!";
+        return $this->prepareReplyToMessage($message, $answerText);
     }
 
     private function getGiveCredAmount($text) {
