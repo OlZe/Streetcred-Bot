@@ -94,7 +94,7 @@ class Service {
             $recieverCredData[$recieverMessageId]["credSources"][$donorUserId]["givenCredAmount"] += $addCredAmount;
             $recieverCredData[$recieverMessageId]["credSources"][$donorUserId]["firstName"] = $donorName;
             $this->$dao->saveCredDataForUser($chatId, $recieverUserId, $recieverCredData);
-            $newRecieverCred = $recieverCredData[$recieverMessageId]["credSources"][$donorUserId]["givenCredAmount"];
+            $newRecieverCred = $this->$dao->getTotalCredForUser($chatId, $recieverUserId);
 
             $plusSign = $addCredAmount >= 0 ? "+" : ""; // negative numbers already have a "-"-symbol in front
             $answerText = $plusSign.$addCredAmount." streetcred to ".$recieverName.": ".$newRecieverCred;
