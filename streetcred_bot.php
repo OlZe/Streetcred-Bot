@@ -73,19 +73,34 @@ class Service {
     private function handleGiveCredCommand($message) {
         $text = null;
         if($this->messageIsReply($message)) {
-            // $credRecieverMessageId = $message["message_id"];
-            // $credRecieverName = $message["reply_to_message"]["from"]["first_name"];
-            // $credRecieverUserId = $message["reply_to_message"]["from"]["id"];
-            // $addCredAmount = $this->getGiveCredAmount($message["text"]);
-            // $credData = $this->$dao->getCredForUser($message["chat"]["id"], $credRecieverUserId);
+            $chatId = $message["chat"]["id"];
+            $recieverMessageId = $message["reply_to_message"]["message_id"];
+            $recieverUserId = $message["reply_to_message"]["from"]["id"];
+            $recieverName = $message["reply_to_message"]["from"]["first_name"];
+            $recieverCredData = $this->$dao->getCredDataForUser($chatId, $recieverUserId);
+            $donorUserId = $message["from"]["id"];
+            $donorName = $message["from"]["first_name"];
 
-            // $credData[""]
+            if(!isset($recieverCredData[$recieverMessageId])) {
+                $recieverCredData[$recieverMessageId] = array();
+            }
+            $recieverCredData[$recieverMessageId]["messageText"] = $message["reply_to_message"]["text"];
+            $recieverCredData[$recieverMessageId]["time"]  = $message["reply_to_message"]["date"];
+            if(!isset($recieverCredData[$recieverMessageId]["credSources"])) {
+                $recieverCredData[$recieverMessageId]["credSources"] = array();
+            }
+            if(!isset($recieverCredData[$recieverMessageId]["credSources"][$donorUserId])) {
+                $recieverCredData[$recieverMessageId]["credSources"][$donorUserId] = array();
+                $recieverCredData[$recieverMessageId]["credSources"][$donorUserId]["givenCredAmount"] = 0;
+            }
+            $addCredAmount = $this->getGiveCredAmount($message["text"]);
+            $recieverCredData[$recieverMessageId]["credSources"][$donorUserId]["givenCredAmount"] += $addCredAmount;
+            $recieverCredData[$recieverMessageId]["credSources"][$donorUserId]["firstName"] = $donorName;
+            $this->$dao->saveCredDataForUser($chatId, $recieverUserId, $recieverCredData);
+            $newRecieverCred = $recieverCredData[$recieverMessageId]["credSources"][$donorUserId]["givenCredAmount"];
 
-
-            // // $newCred = $this->$dao->addCredToUser($message["chat"]["id"], $credRecieverId, $addCredAmount);
-
-            // $plusSign = $addCredAmount >= 0 ? "+" : ""; // negative numbers already have a "-"-symbol in front
-            // $text = $plusSign.$addCredAmount." streetcred to ".$credRecieverName.": ".$newCred;
+            $plusSign = $addCredAmount >= 0 ? "+" : ""; // negative numbers already have a "-"-symbol in front
+            $text = $plusSign.$addCredAmount." streetcred to ".$recieverName.": ".$newRecieverCred;
         }
         return $text;
     }
