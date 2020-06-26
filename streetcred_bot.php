@@ -5,7 +5,7 @@ define("API_URL", "https://api.telegram.org/bot".API_AUTH_TOKEN."/");
 define("API_METHOD_SEND_MESSAGE", "sendMessage");
 define("API_METHOD_EDIT_MESSAGE", "editMessageText");
 define("GIVE_CRED_COMMAND", "respect");
-define("GET_CRED_COMMAND", "/respect");
+define("GET_CRED_COMMAND", "/myrespect");
 define("HELP_COMMAND", "/help");
 (new Controller())->handleWebRequest();
 

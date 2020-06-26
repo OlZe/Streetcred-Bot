@@ -8,7 +8,7 @@ If a user wants to give streetcred to a recipient, he should reply to the recipi
 The user may also add a specific amount of streetcred by noting the amount after the command: `respect 10` will add +10 streetcred to the recipient.
 Streetcred can also be removed by using a negative number: `respect -5`
 
-The user can know his current streetcred by using the `/respect` command.
+The user can know his current streetcred by using the `/myrespect` command.
 
 Streetcred is tracked individually for each chat.
 
