@@ -18,8 +18,9 @@ class Controller {
 
     public function handleWebRequest()  {
         $request = json_decode(file_get_contents("php://input"), true);
-        if($this->isTextMessage($request)) {
-            $responeRequest = $this->service->handleTextMessage($request["message"]);
+        $message = $this->getTelegramTextMessage($request);
+        if(isset($message)) {
+            $responeRequest = $this->service->handleTextMessage($message);
             if(isset($responeRequest)) {
                 $this->sendRequest($responeRequest);
             }
@@ -43,8 +44,8 @@ class Controller {
         }
     }
     
-    private function isTextMessage($request) {
-        return isset($request["message"]) && isset($request["message"]["text"]);
+    private function getTelegramTextMessage($request) {
+        return isset($request["edited_message"]) ? $request["edited_message"] : $request["message"];
     }
 }
 
@@ -108,17 +109,35 @@ class Service {
                 $recieverCredData[$recieverMessageId]["credSources"][$donorUserId] = array();
                 $recieverCredData[$recieverMessageId]["credSources"][$donorUserId]["givenCredAmount"] = 0;
             }
-            $addCredAmount = $this->getGiveCredAmount($message["text"]);
-            $recieverCredData[$recieverMessageId]["credSources"][$donorUserId]["givenCredAmount"] += $addCredAmount;
+            $giveCredAmount = $this->getGiveCredAmount($message["text"]);
+            $recieverCredData[$recieverMessageId]["credSources"][$donorUserId]["givenCredAmount"] = $giveCredAmount;
             $recieverCredData[$recieverMessageId]["credSources"][$donorUserId]["firstName"] = $donorName;
             $this->dao->saveCredDataForUser($chatId, $recieverUserId, $recieverCredData);
             $newRecieverCred = $this->dao->getTotalCredForUser($chatId, $recieverUserId);
 
-            $plusSign = $addCredAmount >= 0 ? "+" : ""; // negative numbers already have a "-"-symbol in front
-            $answerText = $plusSign.$addCredAmount." streetcred to ".$recieverName.": ".$newRecieverCred;
+
+            $answerText = "";
+            if(count($recieverCredData[$recieverMessageId]["credSources"]) > 1) {
+                foreach($recieverCredData[$recieverMessageId]["credSources"] as $donation) {
+                    $plusSign = $donation["givenCredAmount"] >= 0 ? "+" : ""; // negative numbers already have a "-"-symbol in front
+                    $answerText .= $plusSign.$donation["givenCredAmount"]." cred by ".$donation["firstName"].",\n";
+                }
+                $answerText .= $recieverName."'s new total: ".$newRecieverCred;
+            }
+            else {
+                $plusSign = $newRecieverCred >= 0 ? "+" : "";
+                $answerText = $plusSign.$giveCredAmount." cred by ".$donorName.": ".$newRecieverCred;
+            }
             
-            $callbackFn = array($this, 'handleGiveCredBotReplyDone');
-            $responseRequest = $this->prepareReplyToMessage($message["reply_to_message"], $answerText, $callbackFn);
+            if(isset($recieverCredData[$recieverMessageId]["botReplyMessageId"])) {
+                // Edit existing bot reply
+                $responseRequest = $this->prepareEditMessage($chatId, $recieverCredData[$recieverMessageId]["botReplyMessageId"], $answerText, null);
+            }
+            else {
+                // Send new bot reply
+                $callbackFn = array($this, 'handleGiveCredBotReplyDone');
+                $responseRequest = $this->prepareReplyToMessage($message["reply_to_message"], $answerText, $callbackFn);
+            }
         }
         return $responseRequest;
     }
@@ -172,6 +191,17 @@ class Service {
             "chat_id" => $message["chat"]["id"],
             "reply_to_message_id" => $message["message_id"],
             "text" => $text);
+        $request->callbackFn = $callbackFn;
+        return $request;
+    }
+ 
+    private function prepareEditMessage($chatId, $messageId, $newText, $callbackFn) {
+        $request = new OutgoingRequest();
+        $request->method = API_METHOD_EDIT_MESSAGE;
+        $request->body = array(
+            "chat_id" => $chatId,
+            "message_id" => $messageId,
+            "text" => $newText);
         $request->callbackFn = $callbackFn;
         return $request;
     }
