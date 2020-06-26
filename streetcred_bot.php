@@ -36,10 +36,10 @@ class Controller {
         curl_setopt($curl, CURLOPT_HTTPHEADER, array("Content-Type:application/json"));
         curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
 
-        $result = json_decode(curl_exec($curl));
+        $result = json_decode(curl_exec($curl), true);
         curl_close($curl);
         if(is_callable($outgoingRequest->callbackFn)) {
-            $outgoingRequest->callbackFn($result);
+            call_user_func($outgoingRequest->callbackFn, $result);
         }
     }
     
@@ -116,12 +116,26 @@ class Service {
 
             $plusSign = $addCredAmount >= 0 ? "+" : ""; // negative numbers already have a "-"-symbol in front
             $answerText = $plusSign.$addCredAmount." streetcred to ".$recieverName.": ".$newRecieverCred;
+            
+            $callbackFn = array($this, 'handleGiveCredBotReplyDone');
             $responseRequest = $this->prepareReplyToMessage($message["reply_to_message"], $answerText, $callbackFn);
         }
         return $responseRequest;
     }
 
-
+    public function handleGiveCredBotReplyDone($result) {
+        if($result["ok"] == true) {
+            $sentMessage = $result["result"];
+            // Update saved cred data with the bot's confirmation message ID
+            $sentMessageId = $sentMessage["message_id"];
+            $chatId = $sentMessage["chat"]["id"];
+            $recieverUserId = $sentMessage["reply_to_message"]["from"]["id"];
+            $recieverMessageId = $sentMessage["reply_to_message"]["message_id"];
+            $credData = $this->dao->getCredDataForUser($chatId, $recieverUserId);
+            $credData[$recieverMessageId]["botReplyMessageId"] = $sentMessageId;
+            $this->dao->saveCredDataForUser($chatId, $recieverUserId, $credData);
+        }
+    }
 
     private function handleHelpCommand($message) {
         $answerText =   "Use /respect to see how much streetcred you have.\n".
@@ -158,7 +172,7 @@ class Service {
             "chat_id" => $message["chat"]["id"],
             "reply_to_message_id" => $message["message_id"],
             "text" => $text);
-        // $request->callbackFn = $callbackFn;
+        $request->callbackFn = $callbackFn;
         return $request;
     }
 }
