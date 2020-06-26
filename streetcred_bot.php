@@ -2,6 +2,8 @@
 
 define("API_AUTH_TOKEN", file_get_contents("./auth_token"));
 define("API_URL", "https://api.telegram.org/bot".API_AUTH_TOKEN."/");
+define("API_METHOD_SEND_MESSAGE", "sendMessage");
+define("API_METHOD_EDIT_MESSAGE", "editMessageText");
 define("GIVE_CRED_COMMAND", "respect");
 define("GET_CRED_COMMAND", "/respect");
 define("HELP_COMMAND", "/help");
@@ -11,78 +13,86 @@ class Controller {
     private $service;
 
     public function __construct() {
-        $this->$service = new Service();
+        $this->service = new Service();
     }
 
     public function handleWebRequest()  {
         $request = json_decode(file_get_contents("php://input"), true);
         if($this->isTextMessage($request)) {
-            $answer = null;
-            $answer = $this->$service->handleTextMessage($request["message"]);
-            if(isset($answer)) {
-                $this->sendRequest($answer);
+            $responeRequest = $this->service->handleTextMessage($request["message"]);
+            if(isset($responeRequest)) {
+                $this->sendRequest($responeRequest);
             }
         }
         else {
-            echo 'unsupported request';
+            echo('unsupported request');
         }
     }
     
-    private function sendRequest($body) {
-        $curl = curl_init(API_URL."sendMessage");
+    private function sendRequest($outgoingRequest) {
+        $curl = curl_init(API_URL.$outgoingRequest->method);
         curl_setopt($curl, CURLOPT_POST, true);
-        curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode($body));
+        curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode($outgoingRequest->body));
         curl_setopt($curl, CURLOPT_HTTPHEADER, array("Content-Type:application/json"));
         curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
 
         $result = json_decode(curl_exec($curl));
         curl_close($curl);
+        if(is_callable($outgoingRequest->callbackFn)) {
+            $outgoingRequest->callbackFn($result);
+        }
     }
     
     private function isTextMessage($request) {
         return isset($request["message"]) && isset($request["message"]["text"]);
     }
 }
+
+class OutgoingRequest {
+    public $method;
+    public $body;
+    public $callbackFn;
+}
     
 class Service {
     private $dao;
     
     public function __construct() {
-        $this->$dao = new Dao();
+        $this->dao = new Dao();
     }
 
     public function handleTextMessage($message) {
-        $answerObject = null;
+        $responseRequest = null;
         if($this->messageIsCommand($message["text"], GIVE_CRED_COMMAND)) {
-            $answerObject = $this->handleGiveCredCommand($message);
+            $responseRequest = $this->handleGiveCredCommand($message);
         }
         elseif($this->messageIsCommand($message["text"], GET_CRED_COMMAND)) {
-            $answerObject = $this->handleGetCredCommand($message);
+            $responseRequest = $this->handleGetCredCommand($message);
         }
         elseif($this->messageIsCommand($message["text"], HELP_COMMAND)) {
-            $answerObject = $this->handleHelpCommand($message);
+            $responseRequest = $this->handleHelpCommand($message);
         }
-        return $answerObject;
+        return $responseRequest;
     }
 
     private function handleGetCredCommand($message) {
         $userId = $message["from"]["id"];
         $userName = $message["from"]["first_name"];
         $chatId = $message["chat"]["id"];
-        $cred = $this->$dao->getTotalCredForUser($chatId, $userId);
+        $cred = $this->dao->getTotalCredForUser($chatId, $userId);
 
         $answerText = $userName." has ".$cred." streetcred.";
-        return $this->prepareReplyToMessage($message, $answerText);
+        return $this->prepareReplyToMessage($message, $answerText, null);
     }
         
     private function handleGiveCredCommand($message) {
-        $answerObject = null;
+        $responseRequest = null;
         if($this->messageIsReply($message)) {
             $chatId = $message["chat"]["id"];
             $recieverMessageId = $message["reply_to_message"]["message_id"];
             $recieverUserId = $message["reply_to_message"]["from"]["id"];
             $recieverName = $message["reply_to_message"]["from"]["first_name"];
-            $recieverCredData = $this->$dao->getCredDataForUser($chatId, $recieverUserId);
+            $recieverCredData = $this->dao->getCredDataForUser($chatId, $recieverUserId);
             $donorUserId = $message["from"]["id"];
             $donorName = $message["from"]["first_name"];
 
@@ -101,20 +111,22 @@ class Service {
             $addCredAmount = $this->getGiveCredAmount($message["text"]);
             $recieverCredData[$recieverMessageId]["credSources"][$donorUserId]["givenCredAmount"] += $addCredAmount;
             $recieverCredData[$recieverMessageId]["credSources"][$donorUserId]["firstName"] = $donorName;
-            $this->$dao->saveCredDataForUser($chatId, $recieverUserId, $recieverCredData);
-            $newRecieverCred = $this->$dao->getTotalCredForUser($chatId, $recieverUserId);
+            $this->dao->saveCredDataForUser($chatId, $recieverUserId, $recieverCredData);
+            $newRecieverCred = $this->dao->getTotalCredForUser($chatId, $recieverUserId);
 
             $plusSign = $addCredAmount >= 0 ? "+" : ""; // negative numbers already have a "-"-symbol in front
             $answerText = $plusSign.$addCredAmount." streetcred to ".$recieverName.": ".$newRecieverCred;
-            $answerObject = $this->prepareReplyToMessage($message["reply_to_message"], $answerText);
+            $responseRequest = $this->prepareReplyToMessage($message["reply_to_message"], $answerText, $callbackFn);
         }
-        return $answerObject;
+        return $responseRequest;
     }
+
+
 
     private function handleHelpCommand($message) {
         $answerText =   "Use /respect to see how much streetcred you have.\n".
                         "Reply to someone's message with 'respect x' to give them +x streetcred!";
-        return $this->prepareReplyToMessage($message, $answerText);
+        return $this->prepareReplyToMessage($message, $answerText, null);
     }
 
     private function getGiveCredAmount($text) {
@@ -139,11 +151,15 @@ class Service {
         return isset($message["reply_to_message"]);
     }
 
-    private function prepareReplyToMessage($message, $text) {
-        return array(
+    private function prepareReplyToMessage($message, $text, $callbackFn) {
+        $request = new OutgoingRequest();
+        $request->method = API_METHOD_SEND_MESSAGE;
+        $request->body = array(
             "chat_id" => $message["chat"]["id"],
             "reply_to_message_id" => $message["message_id"],
             "text" => $text);
+        // $request->callbackFn = $callbackFn;
+        return $request;
     }
 }
 
